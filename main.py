@@ -97,6 +97,7 @@ def main():
     # 統一在最前面初始化 GPIO 模式
     GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BCM)
+    hw.init_hardware()
     hw.lock()
 
     locker_id = "1"
@@ -120,7 +121,7 @@ def main():
     try:
         while True:
             current_door_status = "closed" if hw.is_door_closed() else "open"
-            
+
             if current_door_status != last_door_status:
                 if not lock_sequence_mutex.locked():
                     print(f"[狀態突變] 偵測到門狀態變為: {current_door_status}，同步到雲端...")

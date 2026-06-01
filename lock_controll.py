@@ -5,11 +5,11 @@ import time
 RELAY_PIN = 17
 SENSOR_PIN = 27
 
-GPIO.setup(RELAY_PIN, GPIO.OUT)
-GPIO.setup(SENSOR_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+def init_hardware():
+    """由外部統一設定完 setmode 後呼叫"""
+    GPIO.setup(RELAY_PIN, GPIO.OUT)
+    GPIO.setup(SENSOR_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-# --- 狀態記憶變數 ---
-last_door_state = None 
 def get_lock_status():
     """
     讀取繼電器腳位的輸出狀態：
@@ -36,6 +36,8 @@ def unlock():
         print("[系統] 門已開啟，保持解鎖狀態。")
         GPIO.output(RELAY_PIN, GPIO.HIGH)
 
+# # --- 狀態記憶變數 ---
+# last_door_state = None 
 # if __name__ == "__main__":
 #     try:
 #         while True:
