@@ -59,3 +59,8 @@ class KeypadManager(threading.Thread):
 
     def stop(self):
         self.is_running = False
+
+    def update_password(self, new_password):
+        """供外部動態修改鍵盤密碼"""
+        self.PASSWORD = str(new_password)
+        print(f"[Keypad] 實體鍵盤密碼已成功更新為: {'*' * len(self.PASSWORD)}")
