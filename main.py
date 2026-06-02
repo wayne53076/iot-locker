@@ -5,8 +5,8 @@ import RPi.GPIO as GPIO
 from shadow_client import ShadowClient
 import lock_controll as hw
 from keypad import KeypadManager
+import vibration_sensor as vib  # 1. 導入震動感測器模組
 
-# 配置參數 (請根據你的 AWS IoT 環境修改)
 CONFIG = {
     "endpoint": "a1x8e9kvaznd4d-ats.iot.ap-northeast-1.amazonaws.com",
     "cert": "certs/certificate.pem.crt",
@@ -15,6 +15,7 @@ CONFIG = {
     "client_id": "RaspberryPi_Box_01",
     "thing_name": "locker-pi"
 }
+
 lock_sequence_mutex = threading.Lock()
 
 def execute_unlock_sequence(trigger_source="未知"):
@@ -29,12 +30,11 @@ def execute_unlock_sequence(trigger_source="未知"):
 
         print(f"[系統] 觸發來源: [{trigger_source}]，準備解鎖...")
         hw.unlock()
-    
-        # 開門緩衝邏輯
+        
         open_buffer = 30
         has_opened = False
         print(f"[系統] 已解鎖，請在 {open_buffer} 秒內開啟櫃門...")
-    
+        
         while open_buffer > 0:
             if not hw.is_door_closed():
                 has_opened = True
@@ -61,7 +61,6 @@ def execute_unlock_sequence(trigger_source="未知"):
 
         actual_lock = hw.get_lock_status()
         actual_door = "closed" if hw.is_door_closed() else "open"
-        
         client.sync_state(
             reported_dict={"lock_status": actual_lock, "door_sensor": actual_door}, 
             clear_keys=["lock_status"]
@@ -72,8 +71,8 @@ def on_lock_state_delta(delta_state):
     if "lock_status" in delta_state:
         target_status = delta_state["lock_status"]
         if target_status == "unlocked":
-            # 丟到執行緒執行，避免卡死 MQTT 接收執行緒
             threading.Thread(target=execute_unlock_sequence, kwargs={"trigger_source": "雲端遠端"}).start()
+            
     if "lock_password" in delta_state:
         new_pwd = delta_state["lock_password"]
         if new_pwd is None:
@@ -86,42 +85,69 @@ def on_lock_state_delta(delta_state):
             reported_dict={"lock_password": new_pwd},
             clear_keys=["lock_password"]
         )
-        print("[系統] 雲端密碼狀態同步完畢。")
 
 def on_keypad_success():
-    """鍵盤來的成功通知"""
     threading.Thread(target=execute_unlock_sequence, kwargs={"trigger_source": "實體鍵盤"}).start()
-            
+
+# 2. 定義震動觸發時的業務邏輯
+def on_vibration_triggered(channel):
+    """
+    震動硬體中斷回呼：由震動感測器模組觸發
+    """
+    # 核心邏輯：如果非處於解鎖精靈期間（Mutex 沒被鎖定），代表是異常破壞
+    if not lock_sequence_mutex.locked():
+        print(f"[警報] 偵測到異常震動！非解鎖期間觸發，企圖破壞櫃子！時間：{time.strftime('%H:%M:%S')}")
+        
+        # 立刻往 AWS IoT Core 發送警告訊息
+        # 丟給背景執行緒發送，避免阻塞硬體中斷
+        threading.Thread(
+            target=client.update_reported_state, 
+            args=({"alarm": "vibration_detected"},)
+        ).start()
+    else:
+        # 如果解鎖精靈正在跑，使用者開關門本來就會大力震動，此處選擇忽略，避免誤報
+        print("[系統] 偵測到震動，但目前處於正常解鎖取開門期間，忽略此雜訊。")
+
 def main():
     global client, keypad_thread
-    # 統一在最前面初始化 GPIO 模式
+    
+    # 統一初始化 GPIO 模式
     GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BCM)
+    
+    # 初始化控制模組腳位並上鎖
     hw.init_hardware()
-    hw.lock()
+    hw.lock() 
 
+    # 初始化 AWS Shadow 客戶端
     locker_id = "1"
     client = ShadowClient(**CONFIG, shadow_name=locker_id)
-
+    
     initial_status = {
         "init": True,
-        "lock_status": "locked", 
+        "lock_status": hw.get_lock_status(), 
         "door_sensor": "closed" if hw.is_door_closed() else "open"
     }
     client.update_reported_state(initial_status)
     client.subscribe_to_delta(on_lock_state_delta)
 
+    # 3. 啟動震動感測器模組，並把剛才定義的防盜回呼函式傳進去
+    vib.init_vibration(on_vibration_callback=on_vibration_triggered)
+
+    # 初始化並啟動實體鍵盤
     keypad_thread = KeypadManager(password="1234", on_success_callback=on_keypad_success)
-    keypad_thread.daemon = True
+    keypad_thread.daemon = True  
     keypad_thread.start()
 
-    print("系統已啟動，監聽 AWS IoT 與實體鍵盤指令中...")
-
+    print("系統已啟動，監聽 AWS IoT、實體鍵盤與震動防盜中...")
+    
     last_door_status = "closed" if hw.is_door_closed() else "open"
+    
     try:
         while True:
             current_door_status = "closed" if hw.is_door_closed() else "open"
 
+            # 突發破門監控
             if current_door_status != last_door_status:
                 if not lock_sequence_mutex.locked():
                     print(f"[狀態突變] 偵測到門狀態變為: {current_door_status}，同步到雲端...")
