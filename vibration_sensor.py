@@ -7,10 +7,8 @@ def init_vibration(on_vibration_callback):
     初始化震動感測器
     :param on_vibration_callback: 當觸發震動時，要回呼的外部函式
     """
-    # 模組本身已有 LM393 與上拉電阻，這裡設為 PUD_OFF
     GPIO.setup(VIBRATION_PIN, GPIO.IN, pull_up_down=GPIO.PUD_OFF)
     
-    # 確保清除該腳位之前可能殘留的任何中斷事件（rpi-lgpio 環境下很安全）
     try:
         GPIO.remove_event_detect(VIBRATION_PIN)
     except:

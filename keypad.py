@@ -10,7 +10,7 @@ class KeypadManager(threading.Thread):
         self.COL_PINS = [26, 16, 20, 21]
         self.PASSWORD = password
         self.on_success_callback = on_success_callback
-        self.on_face_request_callback = on_face_request_callback  # 儲存人臉解鎖回呼
+        self.on_face_request_callback = on_face_request_callback
         self.input_buffer = ""
         self.is_running = True
         self.keys = [
@@ -35,7 +35,6 @@ class KeypadManager(threading.Thread):
                     if GPIO.input(c_pin) == GPIO.LOW:
                         key = self.keys[r_idx][c_idx]
                         
-                        # 攔截 A 鍵：觸發雲端人臉解鎖
                         if key == "A":
                             print("\n[Keypad] 偵測到按下 A 鍵，啟動人臉解鎖程序...")
                             self.input_buffer = ""  # 清空之前按到一半的密碼

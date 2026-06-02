@@ -115,17 +115,8 @@ def on_vibration_triggered(channel):
     if not lock_sequence_mutex.locked():
         timestamp = int(time.time())
         print(f"[警報] 偵測到異常震動！非解鎖期間觸發，企圖破壞櫃子！時間：{time.strftime('%H:%M:%S')}")
-        
-        # 立刻往 AWS IoT Core 發送警告訊息
-        # 丟給背景執行緒發送，避免阻塞硬體中斷
-        threading.Thread(
-            target=client.update_reported_state, 
-            args=({"alarm": "vibration_detected"},)
-        ).start()
 
         s3_path = f"alarms/locker_{client.shadow_name}_{timestamp}.jpg"
-        
-        # 3. 直接呼叫相機模組：一行搞定，自動在背景拍照並上傳，絕不干擾主程式
         camera.capture_current_frame_to_s3_async(s3_key=s3_path)
     else:
         # 如果解鎖精靈正在跑，使用者開關門本來就會大力震動，此處選擇忽略，避免誤報

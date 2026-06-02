@@ -5,7 +5,7 @@ import threading
 import time
 
 class CameraManager:
-    def __init__(self, bucket_name="你的-s3-bucket-名稱"):
+    def __init__(self, bucket_name):
         self.bucket_name = bucket_name
         self.s3_client = boto3.client('s3')
         self.is_uploading = False  # 判定是否正在上傳 S3
@@ -17,7 +17,7 @@ class CameraManager:
         try:
             print(f"[Camera] 儲存成功，正在將照片送往 S3: {s3_key} ...")
             self.s3_client.upload_file(local_tmp_path, self.bucket_name, s3_key)
-            print(f"[Camera] 嫌犯照片上傳成功！")
+            print(f"[Camera] 照片上傳成功！")
         except Exception as e:
             print(f"[Camera] 錯誤：上傳 S3 失敗: {e}")
         finally:
@@ -36,7 +36,6 @@ class CameraManager:
         self.is_uploading = True
         local_tmp = f"{prefix}_{int(time.time())}.jpg"
 
-        # 使用樹莓派官方原生命令拍照，這個命令能完美跟系統背景的 PipeWire 共用相機
         # --immediate: 立即拍照不用等待曝光
         # --width / --height: 指定解析度
         # -o: 輸出路徑

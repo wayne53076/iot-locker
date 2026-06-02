@@ -33,7 +33,6 @@ class ShadowClient:
         self.delta_callback = callback
         print(f"[{self.shadow_name}號櫃] 正在訂閱 MQTT Delta: {self.delta_topic}")
         
-        # 訂閱主題並指定回呼函式
         subscribe_future, _ = self.mqtt_connection.subscribe(
             topic=self.delta_topic,
             qos=mqtt.QoS.AT_LEAST_ONCE,
@@ -44,7 +43,6 @@ class ShadowClient:
     def _on_mqtt_delta_received(self, topic, payload, dup, qos, retain, **kwargs):
         """處理接收到的 MQTT Delta 原始訊息"""
         try:
-            # 將 bytes 轉換為 dict
             payload_dict = json.loads(payload.decode('utf-8'))
             print(f"[{self.shadow_name}號櫃] 收到原始 Delta 訊息！")
             
@@ -58,12 +56,11 @@ class ShadowClient:
         """手動發送符合 Shadow 規範的 JSON 到 update 主題"""
         print(f"[{self.shadow_name}號櫃] 正在回報硬體狀態: {reported_dict}")
         
-        # 必須符合 AWS Shadow 的 JSON 結構
         payload = {
             "state": {
                 "reported": reported_dict
             },
-            "clientToken": f"pi-{int(time.time())}" # 可選：用於追蹤請求
+            "clientToken": f"pi-{int(time.time())}"
         }
         
         self.mqtt_connection.publish(
@@ -96,7 +93,6 @@ class ShadowClient:
         """
         print(f"[{self.shadow_name}號櫃] 同步狀態：回報 {reported_dict} 並清除指令 {clear_keys}")
         
-        # 建立同時包含 reported 與 desired (null) 的 Payload
         desired_dict = {key: None for key in clear_keys}
         
         payload = {
