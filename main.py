@@ -110,7 +110,7 @@ def on_vibration_triggered(channel):
         s3_path = f"alarms/locker_{client.shadow_name}_{timestamp}.jpg"
         
         # 3. 直接呼叫相機模組：一行搞定，自動在背景拍照並上傳，絕不干擾主程式
-        camera.capture_to_s3_async(s3_key=s3_path, prefix="intruder")
+        camera.capture_current_frame_to_s3_async(s3_key=s3_path)
     else:
         # 如果解鎖精靈正在跑，使用者開關門本來就會大力震動，此處選擇忽略，避免誤報
         print("[系統] 偵測到震動，但目前處於正常解鎖取開門期間，忽略此雜訊。")
@@ -136,6 +136,7 @@ def main():
     client.subscribe_to_delta(on_lock_state_delta)
 
     camera = cam.CameraManager(bucket_name="iot-locker-photo-storage--632295790221-ap-northeast-1-an")
+    camera.start()
     vib.init_vibration(on_vibration_callback=on_vibration_triggered)
 
     # 初始化並啟動實體鍵盤
