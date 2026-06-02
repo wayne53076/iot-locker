@@ -9,7 +9,11 @@ class CameraManager(threading.Thread):
         super().__init__()
         self.bucket_name = bucket_name
         self.s3_client = boto3.client('s3')
-        self.pipeline = "libcamerasrc ! video/x-raw, width=640, height=480, framerate=14/1 ! videoconvert ! appsink"
+        self.pipeline = (
+            "libcamerasrc ! "
+            "video/x-raw, width=640, height=480, framerate=15/1, format=BGRx ! "
+            "videoconvert ! appsink drop=true max-buffers=1"
+        )
         
         self.current_frame = None  # 儲存最新的相機畫面
         self.is_running = True
@@ -19,14 +23,20 @@ class CameraManager(threading.Thread):
         # 啟動相機硬體
         self.video_capture = cv2.VideoCapture(self.pipeline, cv2.CAP_GSTREAMER)
         if not self.video_capture.isOpened():
-            print("[Camera] 嚴重錯誤：無法初始化相機硬體！")
+            print("[Camera] GStreamer 管道初始化失敗，嘗試切換至常規 V4L2 驅動...")
+            self.video_capture = cv2.VideoCapture(0, cv2.CAP_V4L2)
+            self.video_capture.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            self.video_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+        if not self.video_capture.isOpened():
+            print("[Camera] 嚴重錯誤：完全無法驅動相機硬體，請檢查排線是否鬆脫。")
             self.is_running = False
 
     def run(self):
         """
         背景守護執行緒：唯一有資格讀取相機硬體的迴圈，不斷更新 current_frame
         """
-        print("[Camera] 📹 全域相機串流已啟動，正在維持即時畫面...")
+        print("[Camera] 全域相機串流已啟動，正在維持即時畫面...")
         while self.is_running:
             ret, frame = self.video_capture.read()
             if ret:
