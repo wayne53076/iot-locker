@@ -3,12 +3,14 @@ import time
 import threading
 
 class KeypadManager(threading.Thread):
-    def __init__(self, password="1234", on_success_callback=None):
+    # 新增 on_face_request_callback 參數
+    def __init__(self, password="1234", on_success_callback=None, on_face_request_callback=None):
         super().__init__()
         self.ROW_PINS = [5, 6, 13, 19]
         self.COL_PINS = [26, 16, 20, 21]
         self.PASSWORD = password
         self.on_success_callback = on_success_callback
+        self.on_face_request_callback = on_face_request_callback  # 儲存人臉解鎖回呼
         self.input_buffer = ""
         self.is_running = True
         self.keys = [
@@ -33,11 +35,17 @@ class KeypadManager(threading.Thread):
                     if GPIO.input(c_pin) == GPIO.LOW:
                         key = self.keys[r_idx][c_idx]
                         
-                        if key == "#":
+                        # 攔截 A 鍵：觸發雲端人臉解鎖
+                        if key == "A":
+                            print("\n[Keypad] 偵測到按下 A 鍵，啟動人臉解鎖程序...")
+                            self.input_buffer = ""  # 清空之前按到一半的密碼
+                            if self.on_face_request_callback:
+                                self.on_face_request_callback()
+
+                        elif key == "#":
                             if self.input_buffer == self.PASSWORD:
                                 print("\n[Keypad] 實體密碼正確！")
                                 if self.on_success_callback:
-                                    # 觸發外部傳入的解鎖流程
                                     self.on_success_callback()
                             else:
                                 print("\n[Keypad] 密碼錯誤！")

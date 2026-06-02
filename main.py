@@ -90,6 +90,22 @@ def on_lock_state_delta(delta_state):
 def on_keypad_success():
     threading.Thread(target=execute_unlock_sequence, kwargs={"trigger_source": "實體鍵盤"}).start()
 
+def on_face_unlock_requested():
+    """
+    當使用者按下 A 鍵時觸發：拍照並非同步上傳至 S3 requests/ 資料夾
+    """
+    timestamp = int(time.time())
+    # 存放在 requests/ 虛擬目錄下，供雲端 S3 監聽觸發 Lambda 辨識
+    s3_path = f"requests/unlock_{client.shadow_name}_{timestamp}.jpg"
+    
+    print("[人臉解鎖] 正在擷取現場影像並非同步上傳至雲端...")
+    success = camera.capture_current_frame_to_s3_async(s3_key=s3_path, prefix="face_req")
+    
+    if success:
+        print("[人臉解鎖] 請求已成功派發，請面向相機等待雲端比對結果...")
+    else:
+        print("[人臉解鎖] 錯誤：相機模組忙碌中，請稍後再試。")
+
 # 2. 定義震動觸發時的業務邏輯
 def on_vibration_triggered(channel):
     """
@@ -139,7 +155,7 @@ def main():
     vib.init_vibration(on_vibration_callback=on_vibration_triggered)
 
     # 初始化並啟動實體鍵盤
-    keypad_thread = KeypadManager(password="1234", on_success_callback=on_keypad_success)
+    keypad_thread = KeypadManager(password="1234", on_success_callback=on_keypad_success, on_face_request_callback=on_face_unlock_requested)
     keypad_thread.daemon = True  
     keypad_thread.start()
 
