@@ -136,7 +136,6 @@ def main():
     client.subscribe_to_delta(on_lock_state_delta)
 
     camera = cam.CameraManager(bucket_name="iot-locker-photo-storage--632295790221-ap-northeast-1-an")
-    camera.start()
     vib.init_vibration(on_vibration_callback=on_vibration_triggered)
 
     # 初始化並啟動實體鍵盤
