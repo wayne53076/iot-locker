@@ -5,7 +5,8 @@ import RPi.GPIO as GPIO
 from shadow_client import ShadowClient
 import lock_controll as hw
 from keypad import KeypadManager
-import vibration_sensor as vib  # 1. 導入震動感測器模組
+import vibration_sensor as vib
+import camera_manager as cam
 
 CONFIG = {
     "endpoint": "a1x8e9kvaznd4d-ats.iot.ap-northeast-1.amazonaws.com",
@@ -96,6 +97,7 @@ def on_vibration_triggered(channel):
     """
     # 核心邏輯：如果非處於解鎖精靈期間（Mutex 沒被鎖定），代表是異常破壞
     if not lock_sequence_mutex.locked():
+        timestamp = int(time.time())
         print(f"[警報] 偵測到異常震動！非解鎖期間觸發，企圖破壞櫃子！時間：{time.strftime('%H:%M:%S')}")
         
         # 立刻往 AWS IoT Core 發送警告訊息
@@ -104,18 +106,20 @@ def on_vibration_triggered(channel):
             target=client.update_reported_state, 
             args=({"alarm": "vibration_detected"},)
         ).start()
+
+        s3_path = f"alarms/locker_{client.shadow_name}_{timestamp}.jpg"
+        
+        # 3. 直接呼叫相機模組：一行搞定，自動在背景拍照並上傳，絕不干擾主程式
+        camera.capture_to_s3_async(s3_key=s3_path, prefix="intruder")
     else:
         # 如果解鎖精靈正在跑，使用者開關門本來就會大力震動，此處選擇忽略，避免誤報
         print("[系統] 偵測到震動，但目前處於正常解鎖取開門期間，忽略此雜訊。")
 
 def main():
-    global client, keypad_thread
+    global client, keypad_thread, camera
     
-    # 統一初始化 GPIO 模式
     GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BCM)
-    
-    # 初始化控制模組腳位並上鎖
     hw.init_hardware()
     hw.lock() 
 
@@ -131,7 +135,7 @@ def main():
     client.update_reported_state(initial_status)
     client.subscribe_to_delta(on_lock_state_delta)
 
-    # 3. 啟動震動感測器模組，並把剛才定義的防盜回呼函式傳進去
+    camera = cam.CameraManager(bucket_name="iot-locker-photo-storage--632295790221-ap-northeast-1-an")
     vib.init_vibration(on_vibration_callback=on_vibration_triggered)
 
     # 初始化並啟動實體鍵盤
