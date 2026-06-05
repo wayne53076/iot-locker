@@ -56,7 +56,7 @@ class KeypadManager(threading.Thread):
                         
                         else:
                             self.input_buffer += key
-                            print(f"\r[Keypad] 目前輸入: {'*' * len(self.input_buffer)}", end="", flush=True)
+                            print(f"\r[Keypad] 目前輸入: {self.input_buffer}", end="", flush=True)
 
                         while GPIO.input(c_pin) == GPIO.LOW:
                             time.sleep(0.05)
@@ -70,4 +70,4 @@ class KeypadManager(threading.Thread):
     def update_password(self, new_password):
         """供外部動態修改鍵盤密碼"""
         self.PASSWORD = str(new_password)
-        print(f"[Keypad] 實體鍵盤密碼已成功更新為: {'*' * len(self.PASSWORD)}")
+        print(f"[Keypad] 實體鍵盤密碼已成功更新為: {self.PASSWORD}")

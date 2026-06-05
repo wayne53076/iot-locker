@@ -44,11 +44,18 @@ class ShadowClient:
         """處理接收到的 MQTT Delta 原始訊息"""
         try:
             payload_dict = json.loads(payload.decode('utf-8'))
-            print(f"[{self.shadow_name}號櫃] 收到原始 Delta 訊息！")
             
-            # Shadow Delta 的內容結構通常在 'state' 鍵值下
-            if "state" in payload_dict and self.delta_callback:
-                self.delta_callback(payload_dict["state"])
+            # 檢查 state 是否存在
+            if "state" in payload_dict:
+                delta_content = payload_dict["state"]
+                # 修改這裡：直接把 delta 的 JSON 內容轉成明文字串印出來
+                print(f"[{self.shadow_name}號櫃] 收到原始 Delta 訊息！內容: {json.dumps(delta_content, ensure_ascii=False)}")
+                
+                if self.delta_callback:
+                    self.delta_callback(delta_content)
+            else:
+                print(f"[{self.shadow_name}號櫃] 收到 Delta 訊息，但未包含有效的 'state' 鍵值。")
+                
         except Exception as e:
             print(f"解析 Delta 訊息失敗: {e}")
 
