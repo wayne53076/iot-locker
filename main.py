@@ -74,8 +74,8 @@ def on_lock_state_delta(delta_state):
         if target_status == "unlocked":
             threading.Thread(target=execute_unlock_sequence, kwargs={"trigger_source": "雲端遠端"}).start()
             
-    if "lock_password" in delta_state:
-        new_pwd = delta_state["lock_password"]
+    if "password" in delta_state:
+        new_pwd = delta_state["password"]
         if new_pwd is None:
             return
             
@@ -83,8 +83,8 @@ def on_lock_state_delta(delta_state):
         keypad_thread.update_password(new_pwd)
         
         client.sync_state(
-            reported_dict={"lock_password": new_pwd},
-            clear_keys=["lock_password"]
+            reported_dict={"password": new_pwd},
+            clear_keys=["password"]
         )
 
 def on_keypad_success():
