@@ -88,7 +88,14 @@ def on_lock_state_delta(delta_state):
         )
 
 def on_keypad_success():
+    global keypad_thread, client
     threading.Thread(target=execute_unlock_sequence, kwargs={"trigger_source": "實體鍵盤"}).start()
+    print("[系統] 一次性密碼驗證成功，密碼已失效。")
+    keypad_thread.update_password(None)
+    client.sync_state(
+        reported_dict={"password": None, "status": "used"},
+        clear_keys=["password"]
+    )
 
 def on_face_unlock_requested():
     """
@@ -146,7 +153,7 @@ def main():
     vib.init_vibration(on_vibration_callback=on_vibration_triggered)
 
     # 初始化並啟動實體鍵盤
-    keypad_thread = KeypadManager(password="1234", on_success_callback=on_keypad_success, on_face_request_callback=on_face_unlock_requested)
+    keypad_thread = KeypadManager(on_success_callback=on_keypad_success, on_face_request_callback=on_face_unlock_requested)
     keypad_thread.daemon = True  
     keypad_thread.start()
 

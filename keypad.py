@@ -4,7 +4,7 @@ import threading
 
 class KeypadManager(threading.Thread):
     # 新增 on_face_request_callback 參數
-    def __init__(self, password="1234", on_success_callback=None, on_face_request_callback=None):
+    def __init__(self, password=None, on_success_callback=None, on_face_request_callback=None):
         super().__init__()
         self.ROW_PINS = [5, 6, 13, 19]
         self.COL_PINS = [26, 16, 20, 21]
@@ -42,13 +42,17 @@ class KeypadManager(threading.Thread):
                                 self.on_face_request_callback()
 
                         elif key == "#":
-                            if self.input_buffer == self.PASSWORD:
-                                print("\n[Keypad] 實體密碼正確！")
-                                if self.on_success_callback:
-                                    self.on_success_callback()
+                            if self.PASSWORD is None or self.PASSWORD == "":
+                                print("\n[Keypad] 拒絕訪問：目前無有效的一次性密碼，請先至雲端預約。")
+                                self.input_buffer = ""
                             else:
-                                print("\n[Keypad] 密碼錯誤！")
-                            self.input_buffer = ""
+                                if self.input_buffer == self.PASSWORD:
+                                    print("\n[Keypad] 實體密碼正確！")
+                                    if self.on_success_callback:
+                                        self.on_success_callback()
+                                else:
+                                    print("\n[Keypad] 密碼錯誤！")
+                                self.input_buffer = ""
                         
                         elif key == "*":
                             print("\n[Keypad] 已清除輸入。")
