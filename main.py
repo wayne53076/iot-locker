@@ -167,9 +167,9 @@ def main():
 
             # 突發破門監控
             if current_door_status != last_door_status:
-                if not lock_sequence_mutex.locked():
-                    print(f"[狀態突變] 偵測到門狀態變為: {current_door_status}，同步到雲端...")
-                    client.update_reported_state({"door_sensor": current_door_status})
+                # if not lock_sequence_mutex.locked():
+                #     print(f"[狀態突變] 偵測到門狀態變為: {current_door_status}，同步到雲端...")
+                #     client.update_reported_state({"door_sensor": current_door_status})
                 last_door_status = current_door_status
             
             time.sleep(1)
